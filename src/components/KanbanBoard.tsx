@@ -10,12 +10,20 @@ type Props = {
   onEditJob: (job: JobApplication) => void;
   onNewJob: (status: JobStatus) => void;
   search?: string;
+  directOnly?: boolean;  // show only direct (no-agency) applications
 };
 
-export function KanbanBoard({ onEditJob, onNewJob, search = '' }: Props) {
-  const { jobs, reorderJob } = useStore();
+export function KanbanBoard({ onEditJob, onNewJob, search = '', directOnly = false }: Props) {
+  const { jobs, settings, reorderJob } = useStore();
 
   const q = search.toLowerCase().trim();
+  const hideDays = settings.rejectedHideDays;
+  const today = Date.now();
+
+  function isAutoHidden(job: JobApplication) {
+    if (job.status !== 'rejected' || !hideDays || !job.rejectedAt) return false;
+    return (today - new Date(job.rejectedAt).getTime()) / 86400000 > hideDays;
+  }
 
   function onDragEnd(result: DropResult) {
     const { source, destination } = result;
@@ -37,6 +45,8 @@ export function KanbanBoard({ onEditJob, onNewJob, search = '' }: Props) {
           const col = COLUMN_CONFIG[status];
           const colJobs = jobs
             .filter((j) => j.status === status)
+            .filter((j) => !directOnly || !j.agencyId)
+            .filter((j) => !isAutoHidden(j))
             .filter((j) =>
               !q ||
               j.title.toLowerCase().includes(q) ||

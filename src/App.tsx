@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 import { KanbanBoard } from './components/KanbanBoard';
+import { AgencyBoard } from './components/AgencyBoard';
 import { JobModal } from './components/JobModal';
 import { BaseCVPage } from './pages/BaseCVPage';
 import { SettingsPage } from './pages/SettingsPage';
@@ -12,10 +13,11 @@ import type { JobApplication, JobStatus } from './types';
 import { ALL_STATUSES, COLUMN_CONFIG } from './types';
 import {
   Kanban, FileText, Settings, Plus, Search, X,
-  Briefcase, CheckCircle2, Key, LogOut, Loader2,
+  CheckCircle2, Key, LogOut, Loader2, Building2, Users,
 } from 'lucide-react';
 
 type Page = 'board' | 'cv' | 'settings';
+type BoardMode = 'all' | 'direct' | 'agency';
 
 const NAV_ITEMS: { page: Page; label: string; Icon: React.ElementType }[] = [
   { page: 'board', label: 'Board', Icon: Kanban },
@@ -80,11 +82,14 @@ function MainApp({ email }: { email: string }) {
   const [editingJob, setEditingJob] = useState<JobApplication | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [newStatus, setNewStatus] = useState<JobStatus>('shortlist');
+  const [newAgencyId, setNewAgencyId] = useState('');
   const [search, setSearch] = useState('');
+  const [boardMode, setBoardMode] = useState<BoardMode>('all');
 
-  function openNew(status: JobStatus) {
+  function openNew(status: JobStatus, agencyId?: string) {
     setEditingJob(null);
     setNewStatus(status);
+    setNewAgencyId(agencyId ?? '');
     setShowModal(true);
   }
 
@@ -112,9 +117,7 @@ function MainApp({ email }: { email: string }) {
       <aside className="w-56 bg-white border-r border-gray-200 flex flex-col shrink-0">
         <div className="px-5 py-4 border-b border-gray-100">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
-              <Briefcase size={16} className="text-white" />
-            </div>
+            <img src="/logo.png" alt="Job Flow Board" className="w-9 h-9 rounded-lg object-contain" />
             <div>
               <h1 className="font-bold text-gray-900 text-sm leading-tight">Job Flow Board</h1>
               <p className="text-xs text-gray-400 truncate max-w-[112px]">{email}</p>
@@ -211,32 +214,68 @@ function MainApp({ email }: { email: string }) {
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top bar */}
         <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center gap-4 shrink-0">
-          <div className="flex-1">
+          <div className="flex-1 flex items-center gap-3">
             {page === 'board' ? (
-              <div className="relative max-w-sm">
-                <Search size={15} className="absolute left-3 top-2.5 text-gray-400" />
-                <input
-                  className="input pl-9 pr-8"
-                  placeholder="Search jobs..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
-                {search && (
+              <>
+                <div className="relative max-w-xs">
+                  <Search size={15} className="absolute left-3 top-2.5 text-gray-400" />
+                  <input
+                    className="input pl-9 pr-8"
+                    placeholder="Search jobs..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                  />
+                  {search && (
+                    <button
+                      onClick={() => setSearch('')}
+                      className="absolute right-2.5 top-2.5 text-gray-400 hover:text-gray-600"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+
+                {/* Board mode toggle */}
+                <div className="flex items-center bg-gray-100 rounded-lg p-0.5 text-sm">
                   <button
-                    onClick={() => setSearch('')}
-                    className="absolute right-2.5 top-2.5 text-gray-400 hover:text-gray-600"
+                    onClick={() => setBoardMode('all')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition-colors ${
+                      boardMode === 'all'
+                        ? 'bg-white text-gray-900 shadow-sm'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
                   >
-                    <X size={14} />
+                    <Kanban size={14} /> All
                   </button>
-                )}
-              </div>
+                  <button
+                    onClick={() => setBoardMode('direct')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition-colors ${
+                      boardMode === 'direct'
+                        ? 'bg-white text-gray-900 shadow-sm'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    <Users size={14} /> Direct
+                  </button>
+                  <button
+                    onClick={() => setBoardMode('agency')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition-colors ${
+                      boardMode === 'agency'
+                        ? 'bg-white text-gray-900 shadow-sm'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    <Building2 size={14} /> Agencies
+                  </button>
+                </div>
+              </>
             ) : (
               <h2 className="font-semibold text-gray-900">
                 {page === 'cv' ? 'CV Manager' : 'Settings'}
               </h2>
             )}
           </div>
-          {page === 'board' && (
+          {page === 'board' && boardMode !== 'agency' && (
             <button onClick={() => openNew('shortlist')} className="btn-primary">
               <Plus size={15} /> New Application
             </button>
@@ -257,10 +296,23 @@ function MainApp({ email }: { email: string }) {
             </div>
           ) : (
             <>
-              {page === 'board' && (
+              {page === 'board' && boardMode !== 'agency' && (
                 <div className="p-6">
-                  <KanbanBoard onEditJob={openEdit} onNewJob={openNew} search={search} />
+                  <KanbanBoard
+                    onEditJob={openEdit}
+                    onNewJob={openNew}
+                    search={search}
+                    directOnly={boardMode === 'direct'}
+                  />
                 </div>
+              )}
+              {page === 'board' && boardMode === 'agency' && (
+                <AgencyBoard
+                  onEditJob={openEdit}
+                  onNewJob={openNew}
+                  search={search}
+                  showDirect={false}
+                />
               )}
               {page === 'cv' && <BaseCVPage />}
               {page === 'settings' && <SettingsPage />}
@@ -274,6 +326,7 @@ function MainApp({ email }: { email: string }) {
         <JobModal
           job={editingJob}
           initialStatus={newStatus}
+          initialAgencyId={newAgencyId}
           onClose={closeModal}
         />
       )}

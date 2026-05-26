@@ -2,6 +2,15 @@ import { useState } from 'react';
 import { useStore } from '../store';
 import { Save, Eye, EyeOff, Check, ExternalLink, Lightbulb } from 'lucide-react';
 
+const HIDE_DAYS_OPTIONS = [
+  { value: 0, label: 'Never hide' },
+  { value: 3, label: 'After 3 days' },
+  { value: 5, label: 'After 5 days' },
+  { value: 7, label: 'After 7 days' },
+  { value: 14, label: 'After 14 days' },
+  { value: 30, label: 'After 30 days' },
+];
+
 export function SettingsPage() {
   const { settings, updateSettings } = useStore();
   const [apiKey, setApiKey] = useState(settings.claudeApiKey);
@@ -12,6 +21,10 @@ export function SettingsPage() {
     updateSettings({ claudeApiKey: apiKey });
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
+  }
+
+  function handleHideDaysChange(days: number) {
+    updateSettings({ rejectedHideDays: days });
   }
 
   return (
@@ -81,6 +94,31 @@ export function SettingsPage() {
         )}
       </div>
 
+      {/* Rejected jobs auto-hide */}
+      <div className="card p-6 mb-4">
+        <h2 className="text-base font-semibold text-gray-900 mb-1">Rejected Jobs</h2>
+        <p className="text-sm text-gray-500 mb-4">
+          Automatically hide rejected applications from the board after a set number of days.
+        </p>
+        <div className="form-group">
+          <label className="label">Auto-hide rejected applications</label>
+          <select
+            className="input max-w-xs"
+            value={settings.rejectedHideDays}
+            onChange={(e) => handleHideDaysChange(Number(e.target.value))}
+          >
+            {HIDE_DAYS_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+          <p className="text-xs text-gray-500 mt-1.5">
+            {settings.rejectedHideDays === 0
+              ? 'Rejected applications will always remain visible on the board.'
+              : `Rejected applications will be hidden from the board ${settings.rejectedHideDays} days after being moved to Rejected.`}
+          </p>
+        </div>
+      </div>
+
       {/* Integration info */}
       <div className="card p-6 mb-4">
         <h2 className="text-base font-semibold text-gray-900 mb-3">Integration Opportunities</h2>
@@ -128,10 +166,10 @@ export function SettingsPage() {
       <div className="card p-6">
         <h2 className="text-base font-semibold text-gray-900 mb-3">Data & Privacy</h2>
         <ul className="text-sm text-gray-600 space-y-1.5 list-disc list-inside">
-          <li>All data is stored locally in your browser (localStorage)</li>
+          <li>All data is stored securely in Supabase, linked to your account</li>
           <li>Your CV and applications are never sent to any third party</li>
           <li>Only job descriptions and your base CV are sent to Anthropic's API when you generate content</li>
-          <li>You can export your data using your browser's DevTools (Application → Local Storage)</li>
+          <li>Your Claude API key is stored in your Supabase profile and only used server-side from the browser</li>
         </ul>
       </div>
     </div>

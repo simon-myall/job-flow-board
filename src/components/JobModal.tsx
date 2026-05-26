@@ -11,6 +11,7 @@ import {
 type Props = {
   job: JobApplication | null;
   initialStatus?: JobStatus;
+  initialAgencyId?: string;
   onClose: () => void;
 };
 
@@ -30,100 +31,96 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
-function RecruiterSelect({
-  value,
+// Agency selector — links a job to an agency entity
+function AgencySelect({
+  agencyId,
   onChange,
 }: {
-  value: string;
-  onChange: (v: string) => void;
+  agencyId: string;
+  onChange: (agencyId: string, recruiter: string) => void;
 }) {
-  const { recruiters, addRecruiter } = useStore();
-  const [addingNew, setAddingNew] = useState(false);
-  const [newName, setNewName] = useState('');
+  const { agencies } = useStore();
+  const [showContactHint, setShowContactHint] = useState(false);
 
-  function handleSelectChange(v: string) {
-    if (v === '__add_new__') {
-      setAddingNew(true);
+  function handleSelect(value: string) {
+    if (value === '') {
+      // Direct application
+      onChange('', '');
+      setShowContactHint(false);
     } else {
-      onChange(v);
+      const agency = agencies.find((a) => a.id === value);
+      if (agency) {
+        onChange(agency.id, agency.name);
+        setShowContactHint(!!(agency.contactName || agency.contactEmail));
+      }
     }
   }
 
-  function handleAdd() {
-    const name = newName.trim();
-    if (name && !recruiters.includes(name)) {
-      addRecruiter(name);
-    }
-    if (name) onChange(name);
-    setAddingNew(false);
-    setNewName('');
-  }
+  const selectedAgency = agencies.find((a) => a.id === agencyId);
 
   return (
     <div className="space-y-2">
       <select
         className="input"
-        value={value || ''}
-        onChange={(e) => handleSelectChange(e.target.value)}
+        value={agencyId || ''}
+        onChange={(e) => handleSelect(e.target.value)}
       >
-        <option value="">— Select recruiter —</option>
-        {recruiters.map((r) => (
-          <option key={r} value={r}>{r}</option>
+        <option value="">— Direct application —</option>
+        {agencies.map((a) => (
+          <option key={a.id} value={a.id}>{a.name}</option>
         ))}
-        <option value="__add_new__">＋ Add new recruiter…</option>
       </select>
-      {addingNew && (
-        <div className="flex gap-2">
-          <input
-            className="input"
-            placeholder="Recruiter or agency name…"
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAdd(); } }}
-            autoFocus
-          />
-          <button onClick={handleAdd} className="btn-primary btn-sm shrink-0">
-            <Plus size={13} /> Add
-          </button>
-          <button
-            onClick={() => { setAddingNew(false); setNewName(''); }}
-            className="btn-ghost btn-sm shrink-0"
-          >
-            <X size={14} />
-          </button>
+
+      {/* Agency contact hint */}
+      {selectedAgency && showContactHint && (
+        <div className="text-xs text-gray-500 bg-gray-50 rounded px-3 py-2 border border-gray-200">
+          {selectedAgency.contactName && <span className="mr-2">👤 {selectedAgency.contactName}</span>}
+          {selectedAgency.contactEmail && <span>✉ {selectedAgency.contactEmail}</span>}
         </div>
+      )}
+
+      {/* No agencies hint */}
+      {agencies.length === 0 && (
+        <p className="text-xs text-gray-400">
+          No agencies added yet. Add agencies in the Agency Board view.
+        </p>
       )}
     </div>
   );
 }
 
-export function JobModal({ job, initialStatus = 'shortlist', onClose }: Props) {
-  const { addJob, updateJob, deleteJob, settings, baseCV } = useStore();
+export function JobModal({ job, initialStatus = 'shortlist', initialAgencyId = '', onClose }: Props) {
+  const { addJob, updateJob, deleteJob, settings, baseCV, agencies } = useStore();
   const isNew = !job;
 
-  const [form, setForm] = useState<JobApplication>(() => ({
-    id: '',
-    status: initialStatus,
-    title: '',
-    company: '',
-    location: '',
-    salary: '',
-    jobUrl: '',
-    source: 'other',
-    recruiter: '',
-    jobDescription: '',
-    contactName: '',
-    contactEmail: '',
-    deadline: '',
-    dateAdded: new Date().toISOString().slice(0, 10),
-    notes: '',
-    coverLetter: '',
-    customCV: '',
-    interviewDates: [],
-    tags: [],
-    priority: 'medium',
-    ...job,
-  }));
+  const [form, setForm] = useState<JobApplication>(() => {
+    const initialAgency = agencies.find((a) => a.id === initialAgencyId);
+    return {
+      id: '',
+      status: initialStatus,
+      title: '',
+      company: '',
+      location: '',
+      salary: '',
+      jobUrl: '',
+      source: 'other',
+      recruiter: initialAgency ? initialAgency.name : '',
+      agencyId: initialAgencyId,
+      jobDescription: '',
+      contactName: '',
+      contactEmail: '',
+      deadline: '',
+      dateAdded: new Date().toISOString().slice(0, 10),
+      rejectedAt: '',
+      notes: '',
+      coverLetter: '',
+      customCV: '',
+      interviewDates: [],
+      tags: [],
+      priority: 'medium',
+      ...job,
+    };
+  });
 
   const [tab, setTab] = useState<Tab>('Details');
   const [tagInput, setTagInput] = useState('');
@@ -435,21 +432,29 @@ export function JobModal({ job, initialStatus = 'shortlist', onClose }: Props) {
                 </select>
               </div>
 
-              {/* Recruiter */}
+              {/* Agency selector */}
               <div className="form-group col-span-2">
-                <label className="label">Recruiter / Agency</label>
-                <RecruiterSelect
-                  value={form.recruiter}
-                  onChange={(v) => set('recruiter', v)}
+                <label className="label">Via Agency</label>
+                <AgencySelect
+                  agencyId={form.agencyId}
+                  onChange={(agencyId, recruiter) => {
+                    setForm((f) => ({ ...f, agencyId, recruiter }));
+                    setUnsaved(true);
+                  }}
                 />
-                {form.recruiter && (
-                  <button
-                    className="text-xs text-gray-400 hover:text-gray-600 mt-1"
-                    onClick={() => set('recruiter', '')}
-                  >
-                    ✕ Clear recruiter
-                  </button>
-                )}
+              </div>
+
+              {/* Recruiter contact name (free text, shown when agency selected or direct) */}
+              <div className="form-group col-span-2">
+                <label className="label">
+                  {form.agencyId ? 'Your contact at this agency' : 'Recruiter / Contact name'}
+                </label>
+                <input
+                  className="input"
+                  placeholder={form.agencyId ? 'Specific recruiter name (optional)' : 'e.g. Jane Smith at Hays'}
+                  value={form.recruiter}
+                  onChange={(e) => set('recruiter', e.target.value)}
+                />
               </div>
 
               <div className="form-group">

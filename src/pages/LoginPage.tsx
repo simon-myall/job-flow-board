@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { supabase } from '../supabase';
-import { Briefcase, Eye, EyeOff, Loader2, Mail, Lock, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Eye, EyeOff, Loader2, Mail, Lock, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 type Mode = 'login' | 'signup' | 'reset';
 
@@ -58,11 +58,7 @@ export function LoginPage() {
 
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
-          <div className="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center mb-3 shadow-lg shadow-indigo-200">
-            <Briefcase size={22} className="text-white" />
-          </div>
-          <h1 className="text-xl font-bold text-gray-900">Job Flow Board</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Application Manager</p>
+          <img src="/logo-full.png" alt="Job Flow Board" className="w-64 object-contain" />
         </div>
 
         {/* Card */}
