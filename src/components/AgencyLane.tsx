@@ -50,13 +50,20 @@ export function AgencyLane({
 
         {/* Agency name — click opens detail panel */}
         {!isDirect ? (
-          <button
-            className="font-semibold text-sm text-gray-900 hover:text-indigo-700 transition-colors text-left truncate max-w-[200px]"
-            onClick={(e) => { e.stopPropagation(); onSelectAgency(agency); }}
-            title={`Edit ${agency.name}`}
-          >
-            {agency.name}
-          </button>
+          <div className="flex items-center gap-2 min-w-0">
+            <button
+              className="font-semibold text-sm text-gray-900 hover:text-indigo-700 transition-colors text-left truncate max-w-[200px]"
+              onClick={(e) => { e.stopPropagation(); onSelectAgency(agency); }}
+              title={`Edit ${agency.name}`}
+            >
+              {agency.name}
+            </button>
+            {agency.contactName && (
+              <span className="text-xs text-gray-400 truncate max-w-[160px] shrink-0">
+                {agency.contactName}
+              </span>
+            )}
+          </div>
         ) : (
           <span className="font-semibold text-sm text-gray-600 truncate max-w-[200px]">
             Direct Applications
